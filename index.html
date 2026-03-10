@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>טיימר חלבי</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#16213e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="חלבי" />
+  <link rel="icon" href="icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .card {
+      background: #16213e;
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      max-width: 380px;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 32px;
+      color: #a8d8ea;
+    }
+
+    #eat-btn {
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 18px 36px;
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    #eat-btn:hover {
+      background: #c73652;
+    }
+
+    #eat-btn:active {
+      transform: scale(0.97);
+    }
+
+    #eat-btn.restart {
+      background: #e07b39;
+    }
+
+    #eat-btn.restart:hover {
+      background: #c4692a;
+    }
+
+    #timer-section {
+      display: none;
+      margin-top: 36px;
+    }
+
+    #timer-label {
+      font-size: 0.95rem;
+      color: #aaa;
+      margin-bottom: 12px;
+    }
+
+    #timer-display {
+      font-size: 3rem;
+      font-weight: bold;
+      letter-spacing: 4px;
+      color: #f5a623;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #progress-bar-bg {
+      background: #0f3460;
+      border-radius: 999px;
+      height: 10px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #f5a623, #e94560);
+      border-radius: 999px;
+      transition: width 1s linear;
+      width: 100%;
+    }
+
+    #done-msg {
+      display: none;
+      margin-top: 36px;
+      background: #0b6e4f;
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    #done-msg .emoji {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+
+    #done-msg p {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #7effc4;
+    }
+
+    #reset-btn {
+      display: none;
+      margin-top: 24px;
+      background: transparent;
+      border: 2px solid #555;
+      color: #aaa;
+      border-radius: 10px;
+      padding: 10px 24px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    #reset-btn:hover {
+      border-color: #aaa;
+      color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🥩 מעקב המתנה לחלבי</h1>
+
+    <button id="eat-btn" onclick="startTimer()">אכלתי בשר</button>
+
+    <div id="timer-section">
+      <div id="timer-label">זמן שנותר עד שאפשר לאכול חלבי:</div>
+      <div id="timer-display">03:00:00</div>
+      <div id="progress-bar-bg">
+        <div id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div id="done-msg">
+      <div class="emoji">🧀</div>
+      <p>אפשר לאכול חלבי!</p>
+    </div>
+
+    <button id="reset-btn" onclick="reset()">התחל מחדש</button>
+  </div>
+
+  <script>
+    const TOTAL_MS = 3 * 60 * 60 * 1000; // 3 hours in ms
+    let interval = null;
+
+    function getRemainingSeconds() {
+      const endTime = localStorage.getItem('halaviEndTime');
+      if (!endTime) return 0;
+      return Math.max(0, Math.ceil((Number(endTime) - Date.now()) / 1000));
+    }
+
+    function startTimer() {
+      clearInterval(interval);
+      localStorage.setItem('halaviEndTime', Date.now() + TOTAL_MS);
+
+      const btn = document.getElementById('eat-btn');
+      btn.textContent = 'אכלתי שוב בשר';
+      btn.classList.add('restart');
+      document.getElementById('timer-section').style.display = 'block';
+      document.getElementById('done-msg').style.display = 'none';
+      document.getElementById('reset-btn').style.display = 'none';
+      document.getElementById('progress-bar').style.width = '100%';
+
+      tick();
+      interval = setInterval(tick, 1000);
+
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    function tick() {
+      const remaining = getRemainingSeconds();
+      updateDisplay(remaining);
+
+      const pct = (remaining / (TOTAL_MS / 1000)) * 100;
+      document.getElementById('progress-bar').style.width = pct + '%';
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        localStorage.removeItem('halaviEndTime');
+        const btn = document.getElementById('eat-btn');
+        btn.textContent = 'אכלתי בשר';
+        btn.classList.remove('restart');
+        document.getElementById('timer-section').style.display = 'none';
+        document.getElementById('done-msg').style.display = 'block';
+        document.getElementById('reset-btn').style.display = 'inline-block';
+        if (Notification.permission === 'granted') {
+          new Notification('🧀 אפשר לאכול חלבי!');
+        }
+      }
+    }
+
+    function updateDisplay(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      document.getElementById('timer-display').textContent =
+        String(h).padStart(2, '0') + ':' +
+        String(m).padStart(2, '0') + ':' +
+        String(s).padStart(2, '0');
+    }
+
+    function reset() {
+      clearInterval(interval);
+      localStorage.removeItem('halaviEndTime');
+      const btn = document.getElementById('eat-btn');
+      btn.textContent = 'אכלתי בשר';
+      btn.classList.remove('restart');
+      document.getElementById('timer-section').style.display = 'none';
+      document.getElementById('done-msg').style.display = 'none';
+      document.getElementById('reset-btn').style.display = 'none';
+      document.getElementById('timer-display').textContent = '03:00:00';
+      document.getElementById('progress-bar').style.width = '100%';
+    }
+
+    // On load: resume timer if one is saved
+    (function init() {
+      const remaining = getRemainingSeconds();
+      if (remaining > 0) {
+        const btn = document.getElementById('eat-btn');
+        btn.textContent = 'אכלתי שוב בשר';
+        btn.classList.add('restart');
+        document.getElementById('timer-section').style.display = 'block';
+        tick();
+        interval = setInterval(tick, 1000);
+      }
+    })();
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>
